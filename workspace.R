@@ -1,15 +1,76 @@
+library(BiocManager)
 library(tercen)
 library(dplyr)
+library(flowCore)
 
-options("tercen.workflowId" = "wwww")
-options("tercen.stepId"     = "dddd")
+# http://localhost:5402/admin/w/9bc1fd64ee4d8642eb4c61d22c131536/ds/a0b3cffb-7ccb-4631-8f60-dd3d3c0e0f70
 
-getOption("tercen.workflowId")
-getOption("tercen.stepId")
+options("tercen.workflowId" = "9bc1fd64ee4d8642eb4c61d22c131536")
+options("tercen.stepId"     = "a0b3cffb-7ccb-4631-8f60-dd3d3c0e0f70")
 
-(ctx = tercenCtx())  %>% 
-  select(.y, .ci, .ri) %>% 
-  group_by(.ci, .ri) %>%
-  summarise(median = median(.y)) %>%
+fcs_to_data = function(filename) {
+  data_fcs = read.FCS(filename, transformation = FALSE)
+  data_fcs = compensate(data_fcs, spillover(data_fcs)$SPILL)
+  names_parameters = data_fcs@parameters@data$desc
+  data = as.data.frame(exprs(data_fcs))
+  col_names = colnames(data)
+  names_parameters = ifelse(is.na(names_parameters),col_names,names_parameters)
+  colnames(data) = names_parameters
+  data %>%
+    mutate_if(is.logical, as.character) %>%
+    mutate_if(is.integer, as.double) %>%
+    mutate(.ci = rep_len(0, nrow(.))) %>%
+    mutate(filename = rep_len(basename(filename), nrow(.)))
+}
+
+ctx = tercenCtx()
+
+if (!any(ctx$cnames == "documentId")) stop("Column factor documentId is required") 
+
+#1. extract files
+df <- ctx$cselect()
+
+docId = df$documentId[1]
+doc = ctx$client$fileService$get(docId)
+filename = tempfile()
+writeBin(ctx$client$fileService$download(docId), filename)
+on.exit(unlink(filename))
+
+# unzip if archive
+if(length(grep(".zip", doc$name)) > 0) {
+  tmpdir <- tempfile()
+  unzip(filename, exdir = tmpdir)
+  f.names <- list.files(tmpdir, full.names = TRUE)
+} else {
+  f.names <- filename
+}
+
+# check FCS
+if(any(!isFCSfile(f.names))) stop("Not all imported files are FCS files.")
+
+assign("actual", 0, envir = .GlobalEnv)
+task = ctx$task
+
+
+#2. convert them to FCS files
+f.names %>%
+  lapply(function(filename){
+    data = fcs_to_data(filename)
+    if (!is.null(task)) {
+      # task is null when run from RStudio
+      actual = get("actual",  envir = .GlobalEnv) + 1
+      assign("actual", actual, envir = .GlobalEnv)
+      evt = TaskProgressEvent$new()
+      evt$taskId = task$id
+      evt$total = length(f.names)
+      evt$actual = actual
+      evt$message = paste0('processing FCS file ' , filename)
+      ctx$client$eventService$sendChannel(task$channelId, evt)
+    } else {
+      cat('processing FCS file ' , filename)
+    }
+    data
+  }) %>%
+  bind_rows() %>%
   ctx$addNamespace() %>%
   ctx$save()
