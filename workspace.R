@@ -3,14 +3,22 @@ library(tercen)
 library(dplyr)
 library(flowCore)
 
-# http://localhost:5402/admin/w/9bc1fd64ee4d8642eb4c61d22c131536/ds/a0b3cffb-7ccb-4631-8f60-dd3d3c0e0f70
+# http://localhost:5402/admin/w/9bc1fd64ee4d8642eb4c61d22c131536/ds/3cf9a6e2-1a42-4ad3-baa4-058ff36485b4
 
 options("tercen.workflowId" = "9bc1fd64ee4d8642eb4c61d22c131536")
-options("tercen.stepId"     = "a0b3cffb-7ccb-4631-8f60-dd3d3c0e0f70")
+options("tercen.stepId"     = "3cf9a6e2-1a42-4ad3-baa4-058ff36485b4")
 
-fcs_to_data = function(filename) {
+fcs_to_data = function(filename, comp_df=NULL) {
   data_fcs = read.FCS(filename, transformation = FALSE)
-  data_fcs = compensate(data_fcs, spillover(data_fcs)$SPILL)
+  
+  # Perform compensation
+  if (is.null(comp_df)) {
+    data_fcs = compensate(data_fcs, spillover(data_fcs)$SPILL)
+  } else {
+    colnames(comp_df) = colnames(spillover(data_fcs)$SPILL)
+    data_fcs = compensate(data_fcs, comp_df)
+  }
+
   names_parameters = data_fcs@parameters@data$desc
   data = as.data.frame(exprs(data_fcs))
   col_names = colnames(data)
@@ -40,9 +48,20 @@ on.exit(unlink(filename))
 if(length(grep(".zip", doc$name)) > 0) {
   tmpdir <- tempfile()
   unzip(filename, exdir = tmpdir)
-  f.names <- list.files(tmpdir, full.names = TRUE)
+  f.names <- list.files(tmpdir, full.names = TRUE, 
+                        pattern="\\.fcs$", ignore.case=TRUE)
+  csv.names <- list.files(tmpdir, full.names = TRUE, 
+                          pattern="\\.csv$", ignore.case=TRUE)
+  
+  if (length(csv.names) == 0) { 
+    comp.df <- NULL
+  } else {
+    comp.df <- read.csv(csv.names[1], check.names=FALSE)[-1]
+  }
+  
 } else {
   f.names <- filename
+  comp.df <- NULL
 }
 
 # check FCS
@@ -55,7 +74,9 @@ task = ctx$task
 #2. convert them to FCS files
 f.names %>%
   lapply(function(filename){
-    data = fcs_to_data(filename)
+    # pass CSV compensation matrix or NULL
+    data = fcs_to_data(filename, comp.df)
+    
     if (!is.null(task)) {
       # task is null when run from RStudio
       actual = get("actual",  envir = .GlobalEnv) + 1
