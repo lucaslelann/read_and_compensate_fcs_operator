@@ -4,7 +4,29 @@
   "tags": ["import", "compensation", "flow cytometry"],
   "authors": ["tercen"],
   "urls": ["https://github.com/tercen/read_and_compensate_fcs_operator"],
-  "properties": []
+  "properties": [
+    {
+    "kind": "EnumeratedProperty",
+    "name": "compensation",
+    "defaultValue": "true",
+    "values": [
+      "true",
+      "false"
+    ],
+    "description": "Perform compensation."
+    },
+    
+    {
+    "kind": "EnumeratedProperty",
+    "name": "transformation",
+    "defaultValue": "none",
+    "values": [
+      "none",
+      "biexponential"
+    ],
+    "description": "Perform transformation."
+    }
+  ]
 }
 
 
