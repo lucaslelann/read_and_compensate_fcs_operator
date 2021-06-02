@@ -66,10 +66,10 @@ if (!any(ctx$cnames == "documentId")) stop("Column factor documentId is required
 
 # Setup operator properties
 compensation <- TRUE
-if(!is.null(ctx$op.value("compensation"))) type <- ctx$op.value("compensation")
+if(!is.null(ctx$op.value("compensation"))) compensation <- ctx$op.value("compensation")
 
 transformation <- "biexponential"
-if(!is.null(ctx$op.value("transformation"))) comparison <- ctx$op.value("transformation")
+if(!is.null(ctx$op.value("transformation"))) transformation <- ctx$op.value("transformation")
 
 #1. extract files
 df <- ctx$cselect()
