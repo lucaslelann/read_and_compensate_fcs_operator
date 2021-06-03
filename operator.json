@@ -26,6 +26,19 @@
     ],
     "description": "Perform transformation."
     }
+    
+    {
+    "kind": "EnumeratedProperty",
+    "name": "discard",
+    "defaultValue": "false",
+    "values": [
+      "true",
+      "false"
+    ],
+    "description": "Discard unsorted events."
+    },
+    
+    
   ]
 }
 

@@ -6,8 +6,9 @@ library(flowWorkspace)
 library(stringr)
 
 fcs_to_data = function(filename, 
-                       comp=FALSE, comp_df=NULL,
-                       transform="none") {
+                       comp="false", comp_df=NULL,
+                       transform="none",
+                       discard="false") {
   print(filename)
   print(comp_df)
   indexed_flowdata = read.csv(filename, check.names=FALSE)
@@ -28,7 +29,7 @@ fcs_to_data = function(filename,
   data_fcs = flowFrame(exprs=as.matrix(indexed_flowdata %>% select(-Index)))
   
   # Perform compensation
-  if (comp) {
+  if (comp == "true") {
     if (is.null(comp_df)) {
       data_fcs = compensate(data_fcs, spillover(data_fcs)$SPILL)
     } else {
@@ -44,6 +45,14 @@ fcs_to_data = function(filename,
   # Final DF
   data_fcs = as.data.frame(exprs(data_fcs))
   
+  # Add index
+  data_fcs = data_fcs %>% mutate(Index = indexed_flowdata$Index)
+  
+  # Remove unsorted events if needed
+  if (discard == "true") {
+    data_fcs = data_fcs %>% na_if("") %>% na.omit(Index)
+  }
+  
   #names_parameters = data_fcs@parameters@data$desc
   #data = as.data.frame(exprs(data_fcs))
   #col_names = colnames(data)
@@ -54,7 +63,6 @@ fcs_to_data = function(filename,
     mutate_if(is.logical, as.character) %>%
     mutate_if(is.integer, as.double) %>%
     mutate(.ci = rep_len(0, nrow(.))) %>%
-    mutate(Index = indexed_flowdata$Index) %>%
     mutate(filename = rep_len(basename(filename), nrow(.))) %>%
     mutate(patient_id = rep_len(basename(patient_id), nrow(.))) %>%
     mutate(date = rep_len(basename(date), nrow(.)))
@@ -70,6 +78,9 @@ if(!is.null(ctx$op.value("compensation"))) compensation <- ctx$op.value("compens
 
 transformation <- "biexponential"
 if(!is.null(ctx$op.value("transformation"))) transformation <- ctx$op.value("transformation")
+
+discard <- "false"
+if(!is.null(ctx$op.value("discard"))) discard <- ctx$op.value("discard")
 
 #1. extract files
 df <- ctx$cselect()
@@ -112,7 +123,8 @@ f.names %>%
     # pass CSV compensation matrix or NULL
     data = fcs_to_data(filename, 
                        comp=compensation, comp_df=comp.df,
-                       transform=transformation)
+                       transform=transformation,
+                       discard=discard)
     
     if (!is.null(task)) {
       # task is null when run from RStudio
