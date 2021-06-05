@@ -9,9 +9,10 @@ fcs_to_data = function(path, display_name="",
                        comp="false", comp_df=NULL,
                        transform="none",
                        discard="false") {
-
-  indexed_flowdata = read.csv(filename, check.names=FALSE)
-
+  
+  indexed_flowdata = read.csv(path, check.names=FALSE)
+  print(indexed_flowdata)
+  
   # Perform transformation if needed
   if (transform == "biexponential") {
     trans_f = flowWorkspace::flowjo_biexp()
@@ -94,6 +95,9 @@ if(length(grep(".zip", doc$name)) > 0) {
   comp.names <- list.files(tmpdir, full.names = TRUE, 
                            pattern="\\.comp$", ignore.case=TRUE)
   
+  print(f.names)
+  print(comp.names)
+  
   fcs_files = c()
   comp_files = c()
   
@@ -135,11 +139,11 @@ data %>%
       comp.df <- read.csv(comp, check.names=FALSE)[-1]
       # pass CSV compensation matrix or NULL
       data = fcs_to_data(path=fcs, display_name=fcs,
-                          comp="true", comp_df=comp.df,
-                          transform=transformation)
+                         comp="true", comp_df=comp.df,
+                         transform=transformation)
     } else {
       data = fcs_to_data(path=fcs, display_name=fcs ,
-                          comp="true", transform=transformation)
+                         comp="true", transform=transformation)
     }
     
     if (!is.null(task)) {
