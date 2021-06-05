@@ -11,7 +11,7 @@ library(stringr)
 # http://localhost:5402/admin/w/9bc1fd64ee4d8642eb4c61d22c44bfd3/ds/0450ea0d-7bec-4ecc-9b1c-9e151a7cd1b5
 
 options("tercen.workflowId" = "9bc1fd64ee4d8642eb4c61d22c44bfd3")
-options("tercen.stepId"     = "0450ea0d-7bec-4ecc-9b1c-9e151a7cd1b5")
+options("tercen.stepId"     = "c74ef88c-b40c-4b1a-953d-36381cd99343")
 
 fcs_to_data = function(path, display_name="",
                        comp="false", comp_df=NULL,
@@ -19,8 +19,7 @@ fcs_to_data = function(path, display_name="",
                        discard="false") {
   
   indexed_flowdata = read.csv(path, check.names=FALSE)
-  print(indexed_flowdata)
-  
+
   # Perform transformation if needed
   if (transform == "biexponential") {
     trans_f = flowWorkspace::flowjo_biexp()
@@ -34,6 +33,8 @@ fcs_to_data = function(path, display_name="",
   data_fcs = flowFrame(exprs=as.matrix(indexed_flowdata %>% select(-Index)))
   
   # Perform compensation
+  print(comp)
+  print(head(exprs(data_fcs)))
   if (comp == "true") {
     if (is.null(comp_df)) {
       data_fcs = compensate(data_fcs, spillover(data_fcs)$SPILL)
@@ -46,6 +47,7 @@ fcs_to_data = function(path, display_name="",
       data_fcs = compensate(data_fcs, compensation(as.matrix(comp_df)))
     }
   }
+  print(head(exprs(data_fcs)))
   
   # Final DF
   data_fcs = as.data.frame(exprs(data_fcs))
@@ -63,7 +65,7 @@ fcs_to_data = function(path, display_name="",
   #col_names = colnames(data)
   #names_parameters = ifelse(is.na(names_parameters),col_names,names_parameters)
   #colnames(data) = names_parameters
-  
+
   data_fcs %>%
     mutate_if(is.logical, as.character) %>%
     mutate_if(is.integer, as.double) %>%
@@ -76,13 +78,13 @@ ctx = tercenCtx()
 if (!any(ctx$cnames == "documentId")) stop("Column factor documentId is required") 
 
 # Setup operator properties
-compensation <- TRUE
+compensation <- "true"
 if(!is.null(ctx$op.value("compensation"))) compensation <- ctx$op.value("compensation")
 
 transformation <- "biexponential"
 if(!is.null(ctx$op.value("transformation"))) transformation <- ctx$op.value("transformation")
 
-discard <- "false"
+discard <- "true"
 if(!is.null(ctx$op.value("discard"))) discard <- ctx$op.value("discard")
 
 #1. extract files
@@ -148,10 +150,10 @@ data %>%
       # pass CSV compensation matrix or NULL
       data = fcs_to_data(path=fcs, display_name=fcs,
                          comp="true", comp_df=comp.df,
-                         transform=transformation)
+                         transform=transformation, discard=discard)
     } else {
       data = fcs_to_data(path=fcs, display_name=fcs ,
-                         comp="true", transform=transformation)
+                         comp="true", transform=transformation, discard=discard)
     }
     
     if (!is.null(task)) {

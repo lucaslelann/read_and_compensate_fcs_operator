@@ -11,7 +11,6 @@ fcs_to_data = function(path, display_name="",
                        discard="false") {
   
   indexed_flowdata = read.csv(path, check.names=FALSE)
-  print(indexed_flowdata)
   
   # Perform transformation if needed
   if (transform == "biexponential") {
@@ -26,6 +25,8 @@ fcs_to_data = function(path, display_name="",
   data_fcs = flowFrame(exprs=as.matrix(indexed_flowdata %>% select(-Index)))
   
   # Perform compensation
+  print(comp)
+  print(head(exprs(data_fcs)))
   if (comp == "true") {
     if (is.null(comp_df)) {
       data_fcs = compensate(data_fcs, spillover(data_fcs)$SPILL)
@@ -38,6 +39,7 @@ fcs_to_data = function(path, display_name="",
       data_fcs = compensate(data_fcs, compensation(as.matrix(comp_df)))
     }
   }
+  print(head(exprs(data_fcs)))
   
   # Final DF
   data_fcs = as.data.frame(exprs(data_fcs))
@@ -68,13 +70,13 @@ ctx = tercenCtx()
 if (!any(ctx$cnames == "documentId")) stop("Column factor documentId is required") 
 
 # Setup operator properties
-compensation <- TRUE
+compensation <- "true"
 if(!is.null(ctx$op.value("compensation"))) compensation <- ctx$op.value("compensation")
 
 transformation <- "biexponential"
 if(!is.null(ctx$op.value("transformation"))) transformation <- ctx$op.value("transformation")
 
-discard <- "false"
+discard <- "true"
 if(!is.null(ctx$op.value("discard"))) discard <- ctx$op.value("discard")
 
 #1. extract files
@@ -140,10 +142,10 @@ data %>%
       # pass CSV compensation matrix or NULL
       data = fcs_to_data(path=fcs, display_name=fcs,
                          comp="true", comp_df=comp.df,
-                         transform=transformation)
+                         transform=transformation, discard=discard)
     } else {
       data = fcs_to_data(path=fcs, display_name=fcs ,
-                         comp="true", transform=transformation)
+                         comp="true", transform=transformation, discard=discard)
     }
     
     if (!is.null(task)) {
